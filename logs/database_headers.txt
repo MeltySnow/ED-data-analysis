@@ -1,0 +1,40 @@
+                                                0
+result                                    ED Data
+table                                           0
+_start                  2023-05-09 15:07:00+00:00
+_stop                   2023-05-09 15:07:10+00:00
+_time                   2023-05-09 15:07:10+00:00
+_measurement                      component_value
+location                                   arches
+stand_id                                    ED002
+pressure_PRES001                             0.35
+current_PSU001                             1.8717
+voltage_PSU001                               41.7
+temperature_CO2001                           25.6
+pressure_MFM001                            1.0625
+liquid_flow_LFM001                           17.5
+temperature_MFM001                      27.068832
+conductivity_COND005                         77.2
+pH_PH001                                     5.46
+mass_flow_MFM001                         4.683203
+liquid_flow_LFM003                           25.0
+conductivity_COND003                        102.4
+CO2_PPM_CO2001                            31057.3
+CO2_PPM_CO2002                             1290.0
+temperature_COND003                          27.4
+pH_PH002                                    12.48
+temperature_COND004                          26.9
+pH_PH003                                     9.57
+temperature_COND002                          26.5
+conductivity_COND001                         58.2
+liquid_flow_LFM002                           25.9
+temperature_COND001                          27.2
+pressure_PRES004                             0.23
+conductivity_COND004                        105.2
+temperature_COND005                          25.5
+pressure_PRES003                             0.33
+pressure_PRES002                             0.26
+volumetric_flow_MFM001                   4.441406
+pressure_PRES006                             0.31
+conductivity_COND002                         56.1
+pressure_PRES005                             0.36

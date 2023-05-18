@@ -1,0 +1,6 @@
+*.swp
+.mypy_cache
+venv
+*.out
+__pycache__
+.env
