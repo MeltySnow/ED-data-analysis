@@ -25,6 +25,21 @@ class EDAnalysisManager(object):
 
 	def __init__(self, argc: int, argv: List[str]) -> None:
 		#Load env variables
+		print ("Loading environment variables...")
+		self.LoadEnvironmentVariables()
+
+		#Request experiment metadata from Notion API
+		print ("Requesting metadata from Notion...")
+		self.FetchExperimentDataFromNotion()
+		print ("Parsing experiment metadata...")
+		self.Experiments: List[ExperimentMeta]= []
+		self.ParseExperimentMetadata(argc, argv)
+
+		#Loop through Experiments list, request data from InfluxDB and process data
+		self.ProcessData()
+
+
+	def LoadEnvironmentVariables(self) -> None:
 		load_dotenv()
 		self.NOTION_API_KEY = os.getenv("NOTION_API_KEY")
 		self.NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
@@ -35,28 +50,14 @@ class EDAnalysisManager(object):
 		if not self.NOTION_API_KEY or not self.NOTION_DATABASE_ID or not self.INFLUXDB_API_KEY or not self.INFLUXDB_ORG:
 			raise Exception("ERROR: secrets could not be loaded from .env file")
 
-		self.FetchExperimentDataFromNotion()
-		self.Experiments: List[ExperimentMeta]= []
-		self.ParseExperimentMetadata(argc, argv)
-
-		#for exp in self.Experiments:
-			#rawData: pd.DataFrame = self.FetchFromInfluxDB(exp)
-			#with open("debug.out", 'w', encoding="utf-8") as Writer:
-			#	rawData.to_csv(Writer)
-
 
 #Queries Notion and loads dashboard as pandas DataFrame
 	def FetchExperimentDataFromNotion(self) -> None:
-		#Setup constants
-		tokenNotion = "secret_MaCxJctDQEzJCY6NNv5qdusCMnTXaNRTtHeh3HZlUm7"
-		notionDatabaseID = "57136913df804361804a4da02b7c30f6"
-		
 		try:
-			self.notionDashboard: pd.DataFrame = notion_df.download(notionDatabaseID, api_key=tokenNotion)
+			self.notionDashboard: pd.DataFrame = notion_df.download(self.NOTION_DATABASE_ID, api_key=self.NOTION_API_KEY)
 		except:
 			print ("There was an error communicating with the Notion API", file=sys.stderr)
 			sys.exit()
-
 
 
 
@@ -77,21 +78,16 @@ class EDAnalysisManager(object):
 #Will take timestamps from Notion and use them to query InfluxDB, returning a pandas DataFrame with the raw experimental data
 	def FetchFromInfluxDB(self, experimentMeta) -> pd.DataFrame:
 		#Define constants for influxdb
-		token: str = "D_m2xCnMofjaIn9OKSxIbirvJFrO1_LunpG9Z1mpR5wb-9vxTqIvgfjkueu5deRKaY6EepRdO6dTpl4YOROmBg=="
-		org: str = "oran@missionzero.tech"
 		url: str = "https://europe-west1-1.gcp.cloud2.influxdata.com"
-		client: influxdb_client.InfluxDBClient = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+		client: influxdb_client.InfluxDBClient = influxdb_client.InfluxDBClient(url=url, token=self.INFLUXDB_API_KEY, org=self.INFLUXDB_ORG)
 		
-		#Debugging constants. Replace these with timestamps from Notion
-		#START_TIME = "2023-05-09T15:07:00Z"
-		#END_TIME = "2023-05-09T15:07:10Z"
-
-		START_TIME = int(time.mktime(experimentMeta.startTime.timetuple()))
-		END_TIME = int(time.mktime(experimentMeta.stopTime.timetuple()))
+		#Query only allows integer timestamps
+		START_TIME: int = int(experimentMeta.startTime)
+		END_TIME: int = int(experimentMeta.stopTime)
 
 		query_api = client.query_api()
 
-		influxQuery = f'\
+		influxQuery: str = f'\
 	from(bucket: "MZT_Process_Components")\
 	|> range(start: {START_TIME}, stop: {END_TIME})\
 	|> filter(fn: (r) => r["_measurement"] == "component_value")\
@@ -100,8 +96,53 @@ class EDAnalysisManager(object):
 	|> aggregateWindow(every: 10s, fn: mean, createEmpty: false)\
 	|> pivot(rowKey:["_time"], columnKey: ["_field","component_id"], valueColumn: "_value")\
 	|> yield(name: "ED Data")'
-		print (influxQuery)
+		#print (influxQuery)
 
-		return query_api.query_data_frame(org=org, query=influxQuery)
+		return query_api.query_data_frame(org=self.INFLUXDB_ORG, query=influxQuery)
 
 
+	def ProcessData(self) -> None:
+		for exp in self.Experiments:
+			print ("Requesting data from InfluxDB for experiment: %s..." % (exp.label))
+			rawData: pd.DataFrame = self.FetchFromInfluxDB(exp)
+			#processedData: pd.DataFrame = pd.DataFrame()
+
+			#Turn timestamps into seconds since start of experiment
+			#Find the timestamps at which to slice the dataframe (point where the current changes)
+			#Average these ranges & do arithmetic operations on them
+
+			#Loop through currents to get row indices at which the current changes
+			print ("Processing data...\n")
+			roll: int = 5
+			currents: pd.Series = rawData["current_PSU001"]
+			percentTolerance: float = 10.0
+			n: int = roll * 2
+			sliceIndices: List(int) = []
+			while n < currents.size:
+				rollingMedian: float =  currents.rolling(roll).median()[n]
+				upper: float = rollingMedian * (1 + (percentTolerance/100.0))
+				lower: float = rollingMedian * (1 - (percentTolerance/100.0))
+				if currents[n] > upper or currents[n] < lower:
+					#print ("%i, %f" % (n, currents[n]))
+					sliceIndices.append(n - 1)#Because n should NOT be included
+					n += 5
+				n += 1
+			sliceIndices.append(currents.size - 5)#need one for the endpoint as well lol
+
+			#Now we're gonna loop through the indices to get values for each current density
+			for ind in sliceIndices:
+				endTimestamp: datetime = rawData["_time"][ind]
+				startTimestamp: datetime = endTimestamp - timedelta(minutes=5)
+				dataWindow: pd.DataFrame = rawData[rawData["_time"] >= startTimestamp]
+				dataWindow = dataWindow[dataWindow["_time"] <= endTimestamp]
+				#print (dataWindow["current_PSU001"])
+
+				#Write these functions later, and save their outputs to some sort of appropriate data structure. I'm thinking some sorta 2D array, either as a member of this class (EDAnalysisManager) or as a member of the ExperimentMeta class
+				GetStackResistance(dataWindow)
+				GetCurrentEfficiency(dataWindow)
+				GetPowerConsumption(dataWindow)
+				GetCO2Flux(dataWindow)
+
+
+			#with open("debug.out", 'w', encoding="utf-8") as Writer:
+			#	rawData.to_csv(Writer)
