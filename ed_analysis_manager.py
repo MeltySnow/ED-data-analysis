@@ -1,3 +1,4 @@
+#Import pip packages
 from typing import Type, List
 import requests, json
 import numpy
@@ -10,9 +11,11 @@ import influxdb_client
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 import notion_df
-from experiment_meta import ExperimentMeta
 import sys
 from dotenv import load_dotenv
+#Import project files
+from experiment_meta import ExperimentMeta
+import ed_metric_calculations
 
 #Meta-class with functionality that covers database queries, data processing and plotting graphs
 class EDAnalysisManager(object):
@@ -25,13 +28,13 @@ class EDAnalysisManager(object):
 
 	def __init__(self, argc: int, argv: List[str]) -> None:
 		#Load env variables
-		print ("Loading environment variables...")
+		#print ("Loading environment variables...")
 		self.LoadEnvironmentVariables()
 
 		#Request experiment metadata from Notion API
-		print ("Requesting metadata from Notion...")
+		#print ("Requesting metadata from Notion...")
 		self.FetchExperimentDataFromNotion()
-		print ("Parsing experiment metadata...")
+		#print ("Parsing experiment metadata...")
 		self.Experiments: List[ExperimentMeta]= []
 		self.ParseExperimentMetadata(argc, argv)
 
@@ -103,7 +106,7 @@ class EDAnalysisManager(object):
 
 	def ProcessData(self) -> None:
 		for exp in self.Experiments:
-			print ("Requesting data from InfluxDB for experiment: %s..." % (exp.label))
+			#print ("Requesting data from InfluxDB for experiment: %s..." % (exp.label))
 			rawData: pd.DataFrame = self.FetchFromInfluxDB(exp)
 			#processedData: pd.DataFrame = pd.DataFrame()
 
@@ -112,7 +115,7 @@ class EDAnalysisManager(object):
 			#Average these ranges & do arithmetic operations on them
 
 			#Loop through currents to get row indices at which the current changes
-			print ("Processing data...\n")
+			#print ("Processing data...\n")
 			roll: int = 5
 			currents: pd.Series = rawData["current_PSU001"]
 			percentTolerance: float = 10.0
@@ -135,13 +138,26 @@ class EDAnalysisManager(object):
 				startTimestamp: datetime = endTimestamp - timedelta(minutes=5)
 				dataWindow: pd.DataFrame = rawData[rawData["_time"] >= startTimestamp]
 				dataWindow = dataWindow[dataWindow["_time"] <= endTimestamp]
-				#print (dataWindow["current_PSU001"])
 
-				#Write these functions later, and save their outputs to some sort of appropriate data structure. I'm thinking some sorta 2D array, either as a member of this class (EDAnalysisManager) or as a member of the ExperimentMeta class
-				GetStackResistance(dataWindow)
-				GetCurrentEfficiency(dataWindow)
-				GetPowerConsumption(dataWindow)
-				GetCO2Flux(dataWindow)
+				#Now we used the sliced data to work out the key metrics and set them as member variables in the experimentMeta classes
+				try:
+					exp.stackResistance = ed_metric_calculations.GetStackResistance(dataWindow)
+				except Exception as e:
+					print (e, file=sys.stderr)
+				try:
+					exp.currentEfficiency = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
+				except Exception as e:
+					print (e, file=sys.stderr)
+
+				try:
+					exp.powerConsumption = ed_metric_calculations.GetPowerConsumption(dataWindow)
+				except Exception as e:
+					print (e, file=sys.stderr)
+
+				try:
+					exp.fluxCO2 = ed_metric_calculations.GetCO2Flux(dataWindow)
+				except Exception as e:
+					print (e, file=sys.stderr)
 
 
 			#with open("debug.out", 'w', encoding="utf-8") as Writer:

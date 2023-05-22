@@ -7,9 +7,13 @@ class ExperimentMeta(object):
 	"""
 	Member variables:
 
-	char *label
-	datetime *startTime
-	datetime *stopTime
+	char *label;
+	datetime *startTime;
+	datetime *stopTime;
+	float stackResistance;
+	float currentEfficiency;
+	float powerConsumption;
+	float fluxCO2;
 	"""
 
 	def __init__(self, notionDashboard: pd.DataFrame) -> None:
@@ -24,6 +28,12 @@ class ExperimentMeta(object):
 		#print (f"{self.startTime}, {self.stopTime}")
 		#print (notionDashboard.iloc[0].loc["Start Date & Time"])
 		#print (notionDashboard.iloc[0].loc["End Date & Time"])
+
+		#Forward declarations of member variables:
+		self.stackResistance: float = 0.0
+		self.currentEfficiency: float = 0.0
+		self.powerConsumption: float = 0.0
+		self.fluxCO2: float = 0.0
 	
 	def ToUNIXTime(self, ip: datetime) -> float:
 		return time.mktime(ip.timetuple())
