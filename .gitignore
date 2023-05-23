@@ -4,3 +4,4 @@ venv
 *.out
 __pycache__
 .env
+*.html

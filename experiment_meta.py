@@ -10,10 +10,17 @@ class ExperimentMeta(object):
 	char *label;
 	datetime *startTime;
 	datetime *stopTime;
-	float stackResistance;
-	float currentEfficiency;
-	float powerConsumption;
-	float fluxCO2;
+	float *currentDensityActual;
+	float *currentDensityCategorical;
+	float *stackResistance;
+	float *stackResistanceError;
+	float *currentEfficiency;
+	float *currentEfficiencyError;
+	float *powerConsumption;
+	float *powerConsumptionError;
+	float *fluxCO2;
+	float *fluxCO2Error;
+	dict processedData;
 	"""
 
 	def __init__(self, notionDashboard: pd.DataFrame) -> None:
@@ -30,10 +37,24 @@ class ExperimentMeta(object):
 		#print (notionDashboard.iloc[0].loc["End Date & Time"])
 
 		#Forward declarations of member variables:
-		self.stackResistance: float = 0.0
-		self.currentEfficiency: float = 0.0
-		self.powerConsumption: float = 0.0
-		self.fluxCO2: float = 0.0
+		#self.stackResistance: dict = {}
+		#self.currentEfficiency: dict = {}
+		#self.powerConsumption: dict = {}
+		#self.fluxCO2: dict = {}
+		self.processedData: dict = {
+			"currentDensityActual" : [],
+			"currentDensityCategorical" : [],
+			"stackResistance" : [],
+			"stackResistanceError" : [],
+			"currentEfficiency" : [],
+			"currentEfficiencyError" : [],
+			"powerConsumption" : [],
+			"powerConsumptionError" : [],
+			"fluxCO2" : [],
+			"fluxCO2Error" : [],
+			"label" : []
+		}
+
 	
 	def ToUNIXTime(self, ip: datetime) -> float:
 		return time.mktime(ip.timetuple())

@@ -13,6 +13,7 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 import notion_df
 import sys
 from dotenv import load_dotenv
+import plotly.express as px
 #Import project files
 from experiment_meta import ExperimentMeta
 import ed_metric_calculations
@@ -40,6 +41,9 @@ class EDAnalysisManager(object):
 
 		#Loop through Experiments list, request data from InfluxDB and process data
 		self.ProcessData()
+
+		#Plot processed data
+		self.PlotData()
 
 
 	def LoadEnvironmentVariables(self) -> None:
@@ -101,6 +105,7 @@ class EDAnalysisManager(object):
 	|> yield(name: "ED Data")'
 		#print (influxQuery)
 
+
 		return query_api.query_data_frame(org=self.INFLUXDB_ORG, query=influxQuery)
 
 
@@ -108,7 +113,6 @@ class EDAnalysisManager(object):
 		for exp in self.Experiments:
 			#print ("Requesting data from InfluxDB for experiment: %s..." % (exp.label))
 			rawData: pd.DataFrame = self.FetchFromInfluxDB(exp)
-			#processedData: pd.DataFrame = pd.DataFrame()
 
 			#Turn timestamps into seconds since start of experiment
 			#Find the timestamps at which to slice the dataframe (point where the current changes)
@@ -139,26 +143,95 @@ class EDAnalysisManager(object):
 				dataWindow: pd.DataFrame = rawData[rawData["_time"] >= startTimestamp]
 				dataWindow = dataWindow[dataWindow["_time"] <= endTimestamp]
 
-				#Now we used the sliced data to work out the key metrics and set them as member variables in the experimentMeta classes
+				#Now we used the sliced data to work out the key metrics and add them to the dictionaries in the experimentMeta classes
+				currentDensityTuple: Tuple[float, int] = ed_metric_calculations.GetCurrentDensity(dataWindow)
+				exp.processedData["currentDensityActual"].append(currentDensityTuple[0])
+				exp.processedData["currentDensityCategorical"].append(currentDensityTuple[1])
 				try:
-					exp.stackResistance = ed_metric_calculations.GetStackResistance(dataWindow)
+					stackResistanceTuple: Tuple[float, float] = ed_metric_calculations.GetStackResistance(dataWindow)
+					exp.processedData["stackResistance"].append(stackResistanceTuple[0])
+					exp.processedData["stackResistanceError"].append(stackResistanceTuple[1])
 				except Exception as e:
 					print (e, file=sys.stderr)
 				try:
-					exp.currentEfficiency = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
+					currentEfficiencyTuple: Tuple[float, float] = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
+					exp.processedData["currentEfficiency"].append(currentEfficiencyTuple[0])
+					exp.processedData["currentEfficiencyError"].append(currentEfficiencyTuple[1])
 				except Exception as e:
 					print (e, file=sys.stderr)
 
 				try:
-					exp.powerConsumption = ed_metric_calculations.GetPowerConsumption(dataWindow)
+					powerConsumptionTuple: Tuple[float, float] = ed_metric_calculations.GetPowerConsumption(dataWindow)
+					exp.processedData["powerConsumption"].append(powerConsumptionTuple[0])
+					exp.processedData["powerConsumptionError"].append(powerConsumptionTuple[1])
 				except Exception as e:
 					print (e, file=sys.stderr)
 
 				try:
-					exp.fluxCO2 = ed_metric_calculations.GetCO2Flux(dataWindow)
+					fluxCO2Tuple: Tuple[float, float] = ed_metric_calculations.GetCO2Flux(dataWindow)
+					exp.processedData["fluxCO2"].append(fluxCO2Tuple[0])
+					exp.processedData["fluxCO2Error"].append(fluxCO2Tuple[1])
 				except Exception as e:
 					print (e, file=sys.stderr)
+				
+				#I don't like doing this, but plotly needs it
+				exp.processedData["label"].append(exp.label)
 
 
 			#with open("debug.out", 'w', encoding="utf-8") as Writer:
 			#	rawData.to_csv(Writer)
+
+
+	def PlotData(self) -> None:
+		#Combine all processed data into 1 dataframe:
+		allProcessedData: pd.DataFrame = pd.DataFrame()
+		for exp in self.Experiments:
+			allProcessedData = pd.concat([allProcessedData, pd.DataFrame(exp.processedData)], ignore_index=True)
+
+
+		"""
+		with open("debug.out", 'w', encoding="utf-8") as Writer:
+			allProcessedData.to_csv(Writer)
+		"""
+		#Make list of plots:
+		plots: List[px.plot] = []
+
+		#Actual plotting code:
+		plots.append(px.bar(allProcessedData,
+			x="currentDensityCategorical",
+			y="stackResistance",
+			error_y="stackResistanceError",
+			color="label",
+			barmode="group"
+			))
+
+		plots.append(px.bar(allProcessedData,
+			x="currentDensityCategorical",
+			y="currentEfficiency",
+			error_y="currentEfficiencyError",
+			color="label",
+			barmode="group"
+			))
+
+		plots.append(px.bar(allProcessedData,
+			x="currentDensityCategorical",
+			y="powerConsumption",
+			error_y="powerConsumptionError",
+			color="label",
+			barmode="group"
+			))
+
+		plots.append(px.bar(allProcessedData,
+			x="currentDensityCategorical",
+			y="fluxCO2",
+			error_y="fluxCO2Error",
+			color="label",
+			barmode="group"
+			))
+
+		#Add plots to HTML doc:
+		with open("out.html", 'w', encoding="utf-8") as Writer:
+			Writer.write("<!DOCTYPE html>\n<html>\n<head>\n\t<title>ED results</title>\n</head>\n<body>\n")
+			for plot in plots:
+				Writer.write(plot.to_html(full_html=False))
+			Writer.write("</body>\n></html>")

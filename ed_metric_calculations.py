@@ -23,6 +23,31 @@ def ErrorMultiply(a: Tuple[float, float], b: Tuple[float, float]) -> Tuple[float
 
 
 #In all these functions, numbers are stored as tuples of format (data, error)
+def GetCurrentDensity(dataWindow: pd.DataFrame) -> Tuple[float, int]:
+	#Parses current densities into well-defined categories to use as dictionary keys
+	#This code is VERY DODGY and makes it non-portable to even vaguely different experimental methodologies
+	#However I am too dumb to think of a smarter way
+	#Don't do magic numbers, kids. Magic numbers are bad
+	currentDensities: List[float] = [120.0, 200.0, 280.0, 360.0, 440.0, 540.0]
+
+	#Calculate ACTUAL current density
+	#Extract current from dataframe:
+	actualCurrentDensity: float = dataWindow["current_PSU001"].mean() / ed_constants.MEMBRANE_AREA
+
+
+	#Now we see which key the actual value is closest to
+	outputIndex: int = -1
+	for n in range(0, len(currentDensities)):
+		if outputIndex == -1:
+			outputIndex = n
+		else:
+			diff: float = abs(currentDensities[n] - actualCurrentDensity)
+			best: float = abs(currentDensities[outputIndex] - actualCurrentDensity)
+			if diff < best:
+				outputIndex = n
+	return (actualCurrentDensity, int(currentDensities[outputIndex]))
+
+
 def GetStackResistance(dataWindow: pd.DataFrame) -> Tuple[float, float]:
 	#Extract values and errors from dataframe:
 	current: Tuple[float, float] = (dataWindow["current_PSU001"].mean(), dataWindow["current_PSU001"].std())
