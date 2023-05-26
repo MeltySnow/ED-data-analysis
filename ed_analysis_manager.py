@@ -203,7 +203,15 @@ class EDAnalysisManager(object):
 			error_y="stackResistanceError",
 			color="label",
 			barmode="group"
-			))
+		))
+
+		plots[0].update_layout(
+			title="Stack resistance",
+			legend_title="Amine",
+			xaxis_title="Current density / A m<sup>-2</sup>",
+			yaxis_title="Stack resistance / Ω"
+		)
+
 
 		plots.append(px.bar(allProcessedData,
 			x="currentDensityCategorical",
@@ -213,6 +221,13 @@ class EDAnalysisManager(object):
 			barmode="group"
 			))
 
+		plots[1].update_layout(
+			title="Current efficiency",
+			legend_title="Amine",
+			xaxis_title="Current density / A m<sup>-2</sup>",
+			yaxis_title="Current efficiency / %"
+		)
+
 		plots.append(px.bar(allProcessedData,
 			x="currentDensityCategorical",
 			y="powerConsumption",
@@ -221,17 +236,38 @@ class EDAnalysisManager(object):
 			barmode="group"
 			))
 
+		plots[2].update_layout(
+			title="Power consumption",
+			legend_title="Amine",
+			xaxis_title="Current density / A m<sup>-2</sup>",
+			yaxis_title="Power consumption / kWh t<sup>-1</sup> CO<sub>2</sub>"
+		)
+
 		plots.append(px.bar(allProcessedData,
 			x="currentDensityCategorical",
 			y="fluxCO2",
 			error_y="fluxCO2Error",
 			color="label",
-			barmode="group"
+			barmode="group",
 			))
+
+		plots[3].update_layout(
+			title="CO<sub>2</sub> flux",
+			legend_title="Amine",
+			xaxis_title="Current density / A m<sup>-2</sup>",
+			yaxis_title="CO<sub>2</sub> flux / mg m<sup>-2</sup> s<sup>-1</sup>"
+		)
 
 		#Add plots to HTML doc:
 		with open("out.html", 'w', encoding="utf-8") as Writer:
-			Writer.write("<!DOCTYPE html>\n<html>\n<head>\n\t<title>ED results</title>\n</head>\n<body>\n")
-			for plot in plots:
-				Writer.write(plot.to_html(full_html=False))
+			Writer.write("<!DOCTYPE html>\n<html>\n<head>\n\t<title>ED results</title>\n\t<style>\n\t\t.graph-column{\n\t\t\twidth: 45%;\n\t\t\tfloat: left;\n\t\t\tpadding: 5px 12px 0px 0px;\n\t\t}\n\t</style>\n</head>\n<body>\n\t<div class=\"graph-row\">\n")
+			for n in range(0, len(plots)):
+				Writer.write("<div class=\"graph-column\">\n")
+				Writer.write(plots[n].to_html(full_html=False))
+				Writer.write("</div>")
+				if n % 2 == 1:
+					Writer.write("\t</div>\n")
+					if n < (len(plots) - 1):
+						Writer.write("\t<div class=\"graph-row\">\n")
+
 			Writer.write("</body>\n></html>")

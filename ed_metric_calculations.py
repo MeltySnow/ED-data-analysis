@@ -75,6 +75,10 @@ def GetCurrentEfficiency(dataWindow: pd.DataFrame) -> Tuple[float, float]:
 		#Convert volumetric flow from L min^{-1} to L s^{-1}
 		airVolumetricFlow = ErrorDivide(airVolumetricFlow, (60.0, 0.0))
 		#Work out number of mol of CO2 produced per second:
+		####################
+		#DEBUG --> REMOVE!!!
+		#airVolumetricFlow = (0.07, 0.0)
+		####################
 		molCO2 = ErrorMultiply(fractionCO2, airVolumetricFlow)
 		molCO2 = ErrorMultiply(molCO2, (ed_constants.CO2_DENSITY, 0.0))
 		molCO2 = ErrorDivide(molCO2, (ed_constants.CO2_MOLAR_MASS, 0.0))
@@ -113,6 +117,10 @@ def GetPowerConsumption(dataWindow: pd.DataFrame) -> Tuple[float, float]:
 		airVolumetricFlow = ErrorDivide(airVolumetricFlow, (60.0, 0.0))
 
 		#Work out g CO2 s^{-1}
+		####################
+		#DEBUG --> REMOVE!!!
+		#airVolumetricFlow = (0.07, 0.0)
+		####################
 		massCO2: Tuple[float, float] = ErrorMultiply(fractionCO2, airVolumetricFlow)
 		massCO2 = ErrorMultiply(massCO2, (ed_constants.CO2_DENSITY, 0.0))
 		#Convert mass to tons
