@@ -71,7 +71,7 @@ class EDAnalysisManager(object):
 
 
 
-#Takes experiment ID and gets start and end timestamps from Notion database
+#Takes experiment IDs and gets start and end timestamps from Notion database
 	def ParseExperimentMetadata(self, argc: int, argv: List[str]) -> None:
 		#Iterate through command line arguments, match them with experiment IDs in the notion database, use the DataFrame row to initialise and ExperimentMeta object and append to self.Experiments
 		if argc > 1:
@@ -96,28 +96,27 @@ class EDAnalysisManager(object):
 
 
 
-#Will take timestamps from Notion and use them to query InfluxDB, returning a pandas DataFrame with the raw experimental data
-	def FetchFromInfluxDB(self, experimentMeta) -> pd.DataFrame:
-		#Define constants for influxdb
+	#Dependency for ProcessData(). Takes timestamps from ExperimentMeta object, queries InfluxDB and returns a pandas DataFrame with the raw experimental data
+	def FetchFromInfluxDB(self, experimentMeta: ExperimentMeta) -> pd.DataFrame:
+		#Setup InfluxDB client
 		url: str = "https://europe-west1-1.gcp.cloud2.influxdata.com"
 		client: influxdb_client.InfluxDBClient = influxdb_client.InfluxDBClient(url=url, token=self.INFLUXDB_API_KEY, org=self.INFLUXDB_ORG)
 		
-		#Query only allows integer timestamps
+		#Query only allows integral timestamps
 		START_TIME: int = int(experimentMeta.startTime)
-		END_TIME: int = int(experimentMeta.stopTime)
+		STOP_TIME: int = int(experimentMeta.stopTime)
 
 		query_api = client.query_api()
 
 		influxQuery: str = f'\
 	from(bucket: "MZT_Process_Components")\
-	|> range(start: {START_TIME}, stop: {END_TIME})\
+	|> range(start: {START_TIME}, stop: {STOP_TIME})\
 	|> filter(fn: (r) => r["_measurement"] == "component_value")\
 	|> filter(fn: (r) => r["location"] == "arches")\
 	|> filter(fn: (r) => r["stand_id"] == "ED002")\
 	|> aggregateWindow(every: 10s, fn: mean, createEmpty: false)\
 	|> pivot(rowKey:["_time"], columnKey: ["_field","component_id"], valueColumn: "_value")\
 	|> yield(name: "ED Data")'
-		#print (influxQuery)
 
 
 		return query_api.query_data_frame(org=self.INFLUXDB_ORG, query=influxQuery)
@@ -125,48 +124,50 @@ class EDAnalysisManager(object):
 
 	def ProcessData(self) -> None:
 		for exp in self.Experiments:
-			#print ("Requesting data from InfluxDB for experiment: %s..." % (exp.label))
+			#Create DataFrame with data for a single experiment
 			rawData: pd.DataFrame = self.FetchFromInfluxDB(exp)
 
-			#Turn timestamps into seconds since start of experiment
-			#Find the timestamps at which to slice the dataframe (point where the current changes)
-			#Average these ranges & do arithmetic operations on them
-
-			#Loop through currents to get row indices at which the current changes
-			#print ("Processing data...\n")
+			#Logic to guess the timestamps for the last 5 minutes of each current density setting. Based on deviation of current reading from a rolling median
+			#Lots of magic numbers here, sorry :(
+			#They gave good results for me, but feel free to play around with them if they aren't working out for you
 			roll: int = 5
-			currents: pd.Series = rawData["current_PSU001"]
 			percentTolerance: float = 10.0
-			n: int = roll * 2
+			n: int = roll * 2 #index for while loop
+			currents: pd.Series = rawData["current_PSU001"]
 			sliceIndices: List(int) = []
 			while n < currents.size:
 				rollingMedian: float =  currents.rolling(roll).median()[n]
-				upper: float = rollingMedian * (1 + (percentTolerance/100.0))
-				lower: float = rollingMedian * (1 - (percentTolerance/100.0))
-				if currents[n] > upper or currents[n] < lower:
-					#print ("%i, %f" % (n, currents[n]))
-					sliceIndices.append(n - 1)#Because n should NOT be included
-					n += 5
+				upperBound: float = rollingMedian * (1 + (percentTolerance/100.0))
+				lowerBound: float = rollingMedian * (1 - (percentTolerance/100.0))
+				if currents[n] > upperBound or currents[n] < lowerBound:
+					sliceIndices.append(n - 1) #n should NOT be included
+					n += roll * 2 #More magic numbers, sorry
 				n += 1
-			sliceIndices.append(currents.size - 5)#need one for the endpoint as well lol
 
-			#Now we're gonna loop through the indices to get values for each current density
+			sliceIndices.append(currents.size - 5) #need an index for the endpoint as well
+
+			#Now we're gonna loop through the indices and calculate the key metrics for each current density
 			for ind in sliceIndices:
 				endTimestamp: datetime = rawData["_time"][ind]
 				startTimestamp: datetime = endTimestamp - timedelta(minutes=5)
 				dataWindow: pd.DataFrame = rawData[rawData["_time"] >= startTimestamp]
 				dataWindow = dataWindow[dataWindow["_time"] <= endTimestamp]
 
-				#Now we used the sliced data to work out the key metrics and add them to the dictionaries in the experimentMeta classes
+				#Now we used the sliced data to work out the key metrics, and add them to the processedData dictionary in the ExperimentMeta classes
+
+				#Get current density (actual, and a categorically grouped version for graph plotting)
 				currentDensityTuple: Tuple[float, int] = ed_metric_calculations.GetCurrentDensity(dataWindow)
 				exp.processedData["currentDensityActual"].append(currentDensityTuple[0])
 				exp.processedData["currentDensityCategorical"].append(currentDensityTuple[1])
+
+				#Get stack resistance
 				try:
 					stackResistanceTuple: Tuple[float, float] = ed_metric_calculations.GetStackResistance(dataWindow)
 					exp.processedData["stackResistance"].append(stackResistanceTuple[0])
 					exp.processedData["stackResistanceError"].append(stackResistanceTuple[1])
 				except Exception as e:
 					print (e, file=sys.stderr)
+
 				try:
 					currentEfficiencyTuple: Tuple[float, float] = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
 					exp.processedData["currentEfficiency"].append(currentEfficiencyTuple[0])
