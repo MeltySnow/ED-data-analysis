@@ -8,39 +8,23 @@ class ExperimentMeta(object):
 	Member variables:
 
 	char *label;
-	datetime *startTime;
-	datetime *stopTime;
-	float *currentDensityActual;
-	float *currentDensityCategorical;
-	float *stackResistance;
-	float *stackResistanceError;
-	float *currentEfficiency;
-	float *currentEfficiencyError;
-	float *powerConsumption;
-	float *powerConsumptionError;
-	float *fluxCO2;
-	float *fluxCO2Error;
+	float startTime;
+	float stopTime;
 	dict processedData;
 	"""
 
-	def __init__(self, notionDashboard: pd.DataFrame) -> None:
-		self.label: str = notionDashboard.iloc[0].loc["Label"]
-		startDatetimeString: datetime = notionDashboard.iloc[0].loc["Start Date & Time"].to_pydatetime()
-		stopDatetimeString: datetime = notionDashboard.iloc[0].loc["End Date & Time"].to_pydatetime()
+	def __init__(self, notionDashboard: pd.Series) -> None:
+		self.label: str = notionDashboard.loc["Label"]
+		startDatetimeString: datetime = notionDashboard.loc["Start Date & Time"].to_pydatetime()
+		stopDatetimeString: datetime = notionDashboard.loc["End Date & Time"].to_pydatetime()
 
-		# Convert times to UNIX epoch time
+		# Convert times to UNIX epoch time (needed for InfluxDB query)
 		self.startTime: float = self.ToUNIXTime(startDatetimeString)
 		self.stopTime: float = self.ToUNIXTime(stopDatetimeString)
 
-		#print (f"{self.startTime}, {self.stopTime}")
-		#print (notionDashboard.iloc[0].loc["Start Date & Time"])
-		#print (notionDashboard.iloc[0].loc["End Date & Time"])
+		#print (f"{self.label}: {self.startTime}, {self.stopTime}")
 
 		#Forward declarations of member variables:
-		#self.stackResistance: dict = {}
-		#self.currentEfficiency: dict = {}
-		#self.powerConsumption: dict = {}
-		#self.fluxCO2: dict = {}
 		self.processedData: dict = {
 			"currentDensityActual" : [],
 			"currentDensityCategorical" : [],

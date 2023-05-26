@@ -14,11 +14,12 @@ import notion_df
 import sys
 from dotenv import load_dotenv
 import plotly.express as px
+
 #Import project files
 from experiment_meta import ExperimentMeta
 import ed_metric_calculations
 
-#Meta-class with functionality that covers database queries, data processing and plotting graphs
+#Class with functionality that covers database queries, data processing and plotting graphs
 class EDAnalysisManager(object):
 	"""
 	Member variables:
@@ -28,14 +29,15 @@ class EDAnalysisManager(object):
 	"""
 
 	def __init__(self, argc: int, argv: List[str]) -> None:
-		#Load env variables
-		#print ("Loading environment variables...")
-		self.LoadEnvironmentVariables()
+		#Load local env variables
+		try:
+			self.LoadEnvironmentVariables()
+		except Exception as e:
+			print (e, file=sys.stderr)
+			sys.exit(1)
 
 		#Request experiment metadata from Notion API
-		#print ("Requesting metadata from Notion...")
 		self.FetchExperimentDataFromNotion()
-		#print ("Parsing experiment metadata...")
 		self.Experiments: List[ExperimentMeta]= []
 		self.ParseExperimentMetadata(argc, argv)
 
@@ -45,7 +47,7 @@ class EDAnalysisManager(object):
 		#Plot processed data
 		self.PlotData()
 
-
+	#Reads .env file in local directory and saves env variables as member variables
 	def LoadEnvironmentVariables(self) -> None:
 		load_dotenv()
 		self.NOTION_API_KEY = os.getenv("NOTION_API_KEY")
@@ -54,7 +56,7 @@ class EDAnalysisManager(object):
 		self.INFLUXDB_ORG = os.getenv("INFLUXDB_ORG")
 
 		#Throw exception if env variables failed to load
-		if not self.NOTION_API_KEY or not self.NOTION_DATABASE_ID or not self.INFLUXDB_API_KEY or not self.INFLUXDB_ORG:
+		if not (self.NOTION_API_KEY and self.NOTION_DATABASE_ID and self.INFLUXDB_API_KEY and self.INFLUXDB_ORG):
 			raise Exception("ERROR: secrets could not be loaded from .env file")
 
 
@@ -64,20 +66,32 @@ class EDAnalysisManager(object):
 			self.notionDashboard: pd.DataFrame = notion_df.download(self.NOTION_DATABASE_ID, api_key=self.NOTION_API_KEY)
 		except:
 			print ("There was an error communicating with the Notion API", file=sys.stderr)
-			sys.exit()
+			sys.exit(1)
 
 
 
 
 #Takes experiment ID and gets start and end timestamps from Notion database
 	def ParseExperimentMetadata(self, argc: int, argv: List[str]) -> None:
-		for n in range (1, argc):
-			experimentID = argv[n]
-			dashboardRow: pd.DashboardFrame = self.notionDashboard[self.notionDashboard["Experimental Name"] == experimentID]
-			if dashboardRow.empty:
-				print ("Warning: No experiment with ID \"%s\" was found" % (experimentID), file=sys.stderr)
-			else:
-				self.Experiments.append(ExperimentMeta(dashboardRow))
+		#Iterate through command line arguments, match them with experiment IDs in the notion database, use the DataFrame row to initialise and ExperimentMeta object and append to self.Experiments
+		if argc > 1:
+			for n in range (1, argc):
+				experimentID = argv[n]
+				dashboardRow: pd.DataFrame = self.notionDashboard[self.notionDashboard["Experimental Name"] == experimentID]
+				if dashboardRow.empty:
+					print ("Warning: No experiment with ID \"%s\" was found" % (experimentID), file=sys.stderr)
+				else:
+					self.Experiments.append(ExperimentMeta(dashboardRow.iloc[0]))
+
+		#If no command arguments are passed, default to adding all experiments with the "Completed" field ticked
+		else:
+			#Filter irrelevant columns out of the dashboard
+			relevantDashboard: pd.DataFrame = self.notionDashboard[self.notionDashboard["Completed"]]
+			if relevantDashboard.empty:
+				print ("Error: No experiment IDs were passed, and no completed experiments were found in the Notion dashboard", file=sys.stderr)
+				sys.exit(1)
+			for index, row in relevantDashboard.iterrows():
+				self.Experiments.append(ExperimentMeta(row))
 
 
 
