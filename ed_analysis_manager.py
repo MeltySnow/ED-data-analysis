@@ -45,7 +45,7 @@ class EDAnalysisManager(object):
 		self.ProcessData()
 
 		#Plot processed data
-		self.PlotData()
+		#self.PlotData()
 
 	#Reads .env file in local directory and saves env variables as member variables
 	def LoadEnvironmentVariables(self) -> None:
@@ -157,44 +157,61 @@ class EDAnalysisManager(object):
 
 				#Get current density (actual, and a categorically grouped version for graph plotting)
 				currentDensityTuple: Tuple[float, int] = ed_metric_calculations.GetCurrentDensity(dataWindow)
+
+				#Ensure calculation was successful
+				if math.isnan(currentDensityTuple[0]) or math.isnan(currentDensityTuple[1]):
+					print ("Warning: error in calculating current density for experiment labelled \"%s\"" % exp.label, file=sys.stderr)
+					currentDensityTuple = (0.0, 0.0)
+
 				exp.processedData["currentDensityActual"].append(currentDensityTuple[0])
 				exp.processedData["currentDensityCategorical"].append(currentDensityTuple[1])
 
 				#Get stack resistance
-				try:
-					stackResistanceTuple: Tuple[float, float] = ed_metric_calculations.GetStackResistance(dataWindow)
-					exp.processedData["stackResistance"].append(stackResistanceTuple[0])
-					exp.processedData["stackResistanceError"].append(stackResistanceTuple[1])
-				except Exception as e:
-					print (e, file=sys.stderr)
+				stackResistanceTuple: Tuple[float, float] = ed_metric_calculations.GetStackResistance(dataWindow)
 
-				try:
-					currentEfficiencyTuple: Tuple[float, float] = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
-					exp.processedData["currentEfficiency"].append(currentEfficiencyTuple[0])
-					exp.processedData["currentEfficiencyError"].append(currentEfficiencyTuple[1])
-				except Exception as e:
-					print (e, file=sys.stderr)
+				#Ensure calculation was successful
+				if math.isnan(stackResistanceTuple[0]) or math.isnan(stackResistanceTuple[1]):
+					print ("Warning: error in calculating stack resistance for experiment labelled:\n\t\"%s\"\n\tat current density: %f A/m^2" % (exp.label, currentDensityTuple[0]), file=sys.stderr)
+					stackResistanceTuple = (0.0, 0.0)
 
-				try:
-					powerConsumptionTuple: Tuple[float, float] = ed_metric_calculations.GetPowerConsumption(dataWindow)
-					exp.processedData["powerConsumption"].append(powerConsumptionTuple[0])
-					exp.processedData["powerConsumptionError"].append(powerConsumptionTuple[1])
-				except Exception as e:
-					print (e, file=sys.stderr)
+				exp.processedData["stackResistance"].append(stackResistanceTuple[0])
+				exp.processedData["stackResistanceError"].append(stackResistanceTuple[1])
 
-				try:
-					fluxCO2Tuple: Tuple[float, float] = ed_metric_calculations.GetCO2Flux(dataWindow)
-					exp.processedData["fluxCO2"].append(fluxCO2Tuple[0])
-					exp.processedData["fluxCO2Error"].append(fluxCO2Tuple[1])
-				except Exception as e:
-					print (e, file=sys.stderr)
+				#Get current efficiency
+				currentEfficiencyTuple: Tuple[float, float] = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
+
+				#Ensure calculation was successful
+				if math.isnan(currentEfficiencyTuple[0]) or math.isnan(currentEfficiencyTuple[1]):
+					print ("Warning: error in calculating current efficiency for experiment labelled:\n\t\"%s\"\n\tat current density: %f A/m^2" % (exp.label, currentDensityTuple[0]), file=sys.stderr)
+					currentEfficiencyTuple = (0.0, 0.0)
+
+				exp.processedData["currentEfficiency"].append(currentEfficiencyTuple[0])
+				exp.processedData["currentEfficiencyError"].append(currentEfficiencyTuple[1])
+
+				#Get power consumption
+				powerConsumptionTuple: Tuple[float, float] = ed_metric_calculations.GetPowerConsumption(dataWindow)
+
+				#Ensure calculation was successful
+				if math.isnan(powerConsumptionTuple[0]) or math.isnan(powerConsumptionTuple[1]):
+					print ("Warning: error in calculating power consumption for experiment labelled:\n\t\"%s\"\n\tat current density: %f A/m^2" % (exp.label, currentDensityTuple[0]), file=sys.stderr)
+					powerConsumptionTuple = (0.0, 0.0)
+
+				exp.processedData["powerConsumption"].append(powerConsumptionTuple[0])
+				exp.processedData["powerConsumptionError"].append(powerConsumptionTuple[1])
+
+				#Get CO2 flux
+				fluxCO2Tuple: Tuple[float, float] = ed_metric_calculations.GetCO2Flux(dataWindow)
+
+				#Ensure calculation was successful
+				if math.isnan(fluxCO2Tuple[0]) or math.isnan(fluxCO2Tuple[1]):
+					print ("Warning: error in calculating CO2 flux for experiment labelled:\n\t\"%s\"\n\tat current density: %f A/m^2" % (exp.label, currentDensityTuple[0]), file=sys.stderr)
+					fluxCO2Tuple = (0.0, 0.0)
+
+				exp.processedData["fluxCO2"].append(fluxCO2Tuple[0])
+				exp.processedData["fluxCO2Error"].append(fluxCO2Tuple[1])
 				
 				#I don't like doing this, but plotly needs it
 				exp.processedData["label"].append(exp.label)
-
-
-			#with open("debug.out", 'w', encoding="utf-8") as Writer:
-			#	rawData.to_csv(Writer)
 
 
 	def PlotData(self) -> None:
@@ -275,7 +292,23 @@ class EDAnalysisManager(object):
 
 		#Add plots to HTML doc:
 		with open("out.html", 'w', encoding="utf-8") as Writer:
-			Writer.write("<!DOCTYPE html>\n<html>\n<head>\n\t<title>ED results</title>\n\t<style>\n\t\t.graph-column{\n\t\t\twidth: 45%;\n\t\t\tfloat: left;\n\t\t\tpadding: 5px 12px 0px 0px;\n\t\t}\n\t</style>\n</head>\n<body>\n\t<div class=\"graph-row\">\n")
+			Writer.write("""\
+<!DOCTYPE html>
+<html>
+<head>
+	<title>ED results</title>
+	<style>
+		.graph-column{
+			width: 45%;
+			float: left;
+			padding: 5px 12px 0px 0px;
+		}
+	</style>
+</head>
+<body>
+	<div class=\"graph-row\">\n"""
+		)
+			
 			for n in range(0, len(plots)):
 				Writer.write("<div class=\"graph-column\">\n")
 				Writer.write(plots[n].to_html(full_html=False))
@@ -285,4 +318,4 @@ class EDAnalysisManager(object):
 					if n < (len(plots) - 1):
 						Writer.write("\t<div class=\"graph-row\">\n")
 
-			Writer.write("</body>\n></html>")
+			Writer.write("</body>\n</html>")
