@@ -17,7 +17,7 @@ import plotly.express as px
 
 #Import project files
 from experiment_meta import ExperimentMeta
-import ed_metric_calculations
+from ed_metric_calculations import EDMetrics
 
 #Class with functionality that covers database queries, data processing and plotting graphs
 class EDAnalysisManager(object):
@@ -155,8 +155,10 @@ class EDAnalysisManager(object):
 
 				#Now we used the sliced data to work out the key metrics, and add them to the processedData dictionary in the ExperimentMeta classes
 
+				edMetrics: EDMetrics = EDMetrics(dataWindow)
+
 				#Get current density (actual, and a categorically grouped version for graph plotting)
-				currentDensityTuple: Tuple[float, int] = ed_metric_calculations.GetCurrentDensity(dataWindow)
+				currentDensityTuple: Tuple[float, int] = edMetrics.GetCurrentDensity()
 
 				#Ensure calculation was successful
 				if math.isnan(currentDensityTuple[0]) or math.isnan(currentDensityTuple[1]):
@@ -167,7 +169,7 @@ class EDAnalysisManager(object):
 				exp.processedData["currentDensityCategorical"].append(currentDensityTuple[1])
 
 				#Get stack resistance
-				stackResistanceTuple: Tuple[float, float] = ed_metric_calculations.GetStackResistance(dataWindow)
+				stackResistanceTuple: Tuple[float, float] = edMetrics.GetStackResistance()
 
 				#Ensure calculation was successful
 				if math.isnan(stackResistanceTuple[0]) or math.isnan(stackResistanceTuple[1]):
@@ -178,7 +180,7 @@ class EDAnalysisManager(object):
 				exp.processedData["stackResistanceError"].append(stackResistanceTuple[1])
 
 				#Get current efficiency
-				currentEfficiencyTuple: Tuple[float, float] = ed_metric_calculations.GetCurrentEfficiency(dataWindow)
+				currentEfficiencyTuple: Tuple[float, float] = edMetrics.GetCurrentEfficiency()
 
 				#Ensure calculation was successful
 				if math.isnan(currentEfficiencyTuple[0]) or math.isnan(currentEfficiencyTuple[1]):
@@ -189,7 +191,7 @@ class EDAnalysisManager(object):
 				exp.processedData["currentEfficiencyError"].append(currentEfficiencyTuple[1])
 
 				#Get power consumption
-				powerConsumptionTuple: Tuple[float, float] = ed_metric_calculations.GetPowerConsumption(dataWindow)
+				powerConsumptionTuple: Tuple[float, float] = edMetrics.GetPowerConsumption()
 
 				#Ensure calculation was successful
 				if math.isnan(powerConsumptionTuple[0]) or math.isnan(powerConsumptionTuple[1]):
@@ -200,7 +202,7 @@ class EDAnalysisManager(object):
 				exp.processedData["powerConsumptionError"].append(powerConsumptionTuple[1])
 
 				#Get CO2 flux
-				fluxCO2Tuple: Tuple[float, float] = ed_metric_calculations.GetCO2Flux(dataWindow)
+				fluxCO2Tuple: Tuple[float, float] = edMetrics.GetCO2Flux()
 
 				#Ensure calculation was successful
 				if math.isnan(fluxCO2Tuple[0]) or math.isnan(fluxCO2Tuple[1]):
