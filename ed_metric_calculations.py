@@ -48,7 +48,7 @@ class EDMetrics(object):
 
 	#Integrates series y wrt series x by drawing trapezia between each set of data points and adding their areas
 	@staticmethod
-	def Integrate(xSeries: pd.Series, ySeries: pd.Series) -> float:
+	def Integrate(xSeries: pd.Series, ySeries: pd.Series) -> Tuple[float, float]:
 		#Initialize variables for integration loop
 		integral: float = 0.0
 		x: float = 0.0
@@ -73,7 +73,8 @@ class EDMetrics(object):
 			trapeziumArea: float = ((y + y1) / 2.0) * (x1 - x)
 			integral += trapeziumArea
 		
-		return integral
+		error = ySeries.size * ySeries.std()
+		return (integral, error)
 
 ############################################
 #DEFINE PRIVATE, NON-STATIC MEMBER FUNCTIONS
@@ -93,10 +94,7 @@ class EDMetrics(object):
 		#Get error of CO2 volume
 		co2VolumeError: float = co2VolumeSeries.std()
 		#Get total CO2 volume via integration over time
-		totalCO2Volume: float = self.Integrate(timeSeries, co2VolumeSeries)
-
-		#Combine value and error into tuple
-		outputTuple: Tuple[float, float] = (totalCO2Volume, co2VolumeError)
+		outputTuple: Tuple[float, float] = self.Integrate(timeSeries, co2VolumeSeries)
 
 		#Convert L CO2 to g CO2
 		outputTuple = self.ErrorMultiply(outputTuple, (self.CO2_DENSITY, 0.0))
@@ -148,7 +146,7 @@ class EDMetrics(object):
 		currentEfficiency: Tuple[float, float] = (0.0, 0.0)
 
 		#Work out total number of mol of electrons passed:
-		molElectrons: Tuple[float, float] = (self.Integrate(timeSeries, currentSeries), currentSeries.std()) #Gives total coulombs passed
+		molElectrons: Tuple[float, float] = self.Integrate(timeSeries, currentSeries) #Gives total coulombs passed
 		molElectrons = self.ErrorDivide(molElectrons, (self.FARADAY_CONSTANT, 0.0))
 
 		#Work out mol of CO2 per mol of e-
@@ -170,7 +168,7 @@ class EDMetrics(object):
 		powerConsumption: Tuple[float, float] = (0.0, 0.0)
 
 		#Work out total energy in J
-		totalEnergy: Tuple[float, float] = (self.Integrate(timeSeries, powerSeries), powerSeries.std())
+		totalEnergy: Tuple[float, float] = self.Integrate(timeSeries, powerSeries)
 
 		#Convert energy to kWh
 		totalEnergy = self.ErrorDivide(totalEnergy, (3600000.0, 0.0))
