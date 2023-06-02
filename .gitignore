@@ -1,7 +1,8 @@
 *.swp
 .mypy_cache
-venv
+venv*
 *.out
 __pycache__
 .env
 *.html
+
