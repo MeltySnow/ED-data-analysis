@@ -36,7 +36,8 @@ class ExperimentMeta(object):
 			"powerConsumptionError" : [],
 			"fluxCO2" : [],
 			"fluxCO2Error" : [],
-			"label" : []
+			"label" : [],
+			"capturepHRange" : []
 		}
 
 	

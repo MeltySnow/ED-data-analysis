@@ -208,3 +208,10 @@ class EDMetrics(object):
 		fluxCO2 = self.ErrorDivide(rateCO2, totalArea)
 
 		return fluxCO2
+
+	def GetCapturepHRange(self) -> Tuple[float, float]:
+		pHSeries: pd.Series = self.dataWindow["pH_PH002"]
+		lastIndex: int = pHSeries.size - 1
+		op: str = "%f -> %f" % (pHSeries.iloc[0], pHSeries.iloc[lastIndex])
+		#return (pHSeries[0], pHSeries[lastIndex])
+		return op
