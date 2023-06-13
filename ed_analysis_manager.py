@@ -28,7 +28,7 @@ class EDAnalysisManager(object):
 	ExperimentMeta *Experiments;
 	"""
 
-	def __init__(self, argc: int, argv: List[str]) -> None:
+	def __init__(self, experimentIDs: List[str]) -> None:
 		#Load local env variables
 		try:
 			self.LoadEnvironmentVariables()
@@ -39,7 +39,7 @@ class EDAnalysisManager(object):
 		#Request experiment metadata from Notion API
 		self.FetchExperimentDataFromNotion()
 		self.Experiments: List[ExperimentMeta]= []
-		self.ParseExperimentMetadata(argc, argv)
+		self.ParseExperimentMetadata(experimentIDs)
 
 		#Loop through Experiments list, request data from InfluxDB and process data
 		self.ProcessData()
@@ -72,11 +72,11 @@ class EDAnalysisManager(object):
 
 
 #Takes experiment IDs and gets start and end timestamps from Notion database
-	def ParseExperimentMetadata(self, argc: int, argv: List[str]) -> None:
+	def ParseExperimentMetadata(self, experimentIDs: List[str]) -> None:
 		#Iterate through command line arguments, match them with experiment IDs in the notion database, use the DataFrame row to initialise and ExperimentMeta object and append to self.Experiments
-		if argc > 1:
-			for n in range (1, argc):
-				experimentID = argv[n]
+		if experimentIDs:
+			for n in range (0, len(experimentIDs)):
+				experimentID = experimentIDs[n]
 				dashboardRow: pd.DataFrame = self.notionDashboard[self.notionDashboard["Experimental Name"] == experimentID]
 				if dashboardRow.empty:
 					print ("Warning: No experiment with ID \"%s\" was found" % (experimentID), file=sys.stderr)
@@ -215,6 +215,9 @@ class EDAnalysisManager(object):
 				#I don't like doing this, but plotly needs it
 				exp.processedData["label"].append(exp.label)
 
+				#Get capture pH range:
+				exp.processedData["capturepHRange"].append(edMetrics.GetCapturepHRange())
+
 
 	def PlotData(self) -> None:
 		#Combine all processed data into 1 dataframe:
@@ -236,7 +239,8 @@ class EDAnalysisManager(object):
 			y="stackResistance",
 			error_y="stackResistanceError",
 			color="label",
-			barmode="group"
+			barmode="group",
+			hover_data="capturepHRange"
 		))
 
 		plots[0].update_layout(
@@ -252,7 +256,8 @@ class EDAnalysisManager(object):
 			y="currentEfficiency",
 			error_y="currentEfficiencyError",
 			color="label",
-			barmode="group"
+			barmode="group",
+			hover_data="capturepHRange"
 			))
 
 		plots[1].update_layout(
@@ -267,7 +272,8 @@ class EDAnalysisManager(object):
 			y="powerConsumption",
 			error_y="powerConsumptionError",
 			color="label",
-			barmode="group"
+			barmode="group",
+			hover_data="capturepHRange"
 			))
 
 		plots[2].update_layout(
@@ -283,6 +289,7 @@ class EDAnalysisManager(object):
 			error_y="fluxCO2Error",
 			color="label",
 			barmode="group",
+			hover_data="capturepHRange"
 			))
 
 		plots[3].update_layout(
