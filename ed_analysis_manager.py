@@ -14,6 +14,7 @@ import notion_df
 import sys
 from dotenv import load_dotenv
 import plotly.express as px
+import argparse
 
 #Import project files
 from experiment_meta import ExperimentMeta
@@ -28,24 +29,33 @@ class EDAnalysisManager(object):
 	ExperimentMeta *Experiments;
 	"""
 
-	def __init__(self, experimentIDs: List[str]) -> None:
-		#Load local env variables
+	def __init__(self, config: dict) -> None:
+		#Load local env variables into RAM
 		try:
 			self.LoadEnvironmentVariables()
 		except Exception as e:
 			print (e, file=sys.stderr)
 			sys.exit(1)
 
+		#Set defaults and override using the passed config
+		self.outputFilename: str = "out.html"
+		if config["output"]:
+			self.outputFilename = config["output"]
+
+		if config["dashboard"]:
+			self.NOTION_DATABASE_ID = config["dashboard"]#this variable was already declared inside of the self.LoadEnvironmentVariables() function
+
+		self.exclude: bool = config["exclude"]
+
+
 		#Request experiment metadata from Notion API
 		self.FetchExperimentDataFromNotion()
-		self.Experiments: List[ExperimentMeta]= []
-		self.ParseExperimentMetadata(experimentIDs)
+		self.Experiments: List[ExperimentMeta]= [] # Initialize list containing metadata for all experiments
+		self.ParseExperimentMetadata(config["experimentIDs"])
 
 		#Loop through Experiments list, request data from InfluxDB and process data
 		self.ProcessData()
 
-		#Plot processed data
-		#self.PlotData()
 
 	#Reads .env file in local directory and saves env variables as member variables
 	def LoadEnvironmentVariables(self) -> None:
@@ -74,7 +84,7 @@ class EDAnalysisManager(object):
 #Takes experiment IDs and gets start and end timestamps from Notion database
 	def ParseExperimentMetadata(self, experimentIDs: List[str]) -> None:
 		#Iterate through command line arguments, match them with experiment IDs in the notion database, use the DataFrame row to initialise and ExperimentMeta object and append to self.Experiments
-		if experimentIDs:
+		if experimentIDs and not self.exclude:
 			for n in range (0, len(experimentIDs)):
 				experimentID = experimentIDs[n]
 				dashboardRow: pd.DataFrame = self.notionDashboard[self.notionDashboard["Experimental Name"] == experimentID]
@@ -91,7 +101,8 @@ class EDAnalysisManager(object):
 				print ("Error: No experiment IDs were passed, and no completed experiments were found in the Notion dashboard", file=sys.stderr)
 				sys.exit(1)
 			for index, row in relevantDashboard.iterrows():
-				self.Experiments.append(ExperimentMeta(row))
+				if (not self.exclude) or (not (row.loc["Experimental Name"] in experimentIDs)):
+					self.Experiments.append(ExperimentMeta(row))
 
 
 
@@ -220,6 +231,10 @@ class EDAnalysisManager(object):
 
 
 	def PlotData(self) -> None:
+		#Exit program if there are no valid experiments
+		if not len(self.Experiments):
+			raise Exception("Error: No valid experiments found")
+
 		#Combine all processed data into 1 dataframe:
 		allProcessedData: pd.DataFrame = pd.DataFrame()
 		for exp in self.Experiments:
@@ -300,7 +315,7 @@ class EDAnalysisManager(object):
 		)
 
 		#Add plots to HTML doc:
-		with open("out.html", 'w', encoding="utf-8") as Writer:
+		with open(self.outputFilename, 'w', encoding="utf-8") as Writer:
 			Writer.write("""\
 <!DOCTYPE html>
 <html>
