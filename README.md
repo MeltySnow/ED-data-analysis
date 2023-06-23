@@ -20,11 +20,30 @@ Additionally, a `.env` file is required to run the script. This is not hosted on
 # Use
 The script can be run using the command:
 ```
-python3 main.py
+python3 [options]  main.py
 ```
 Default behaviour is to pull metadata from every experiment in the [notion dashboard](https://notion.so/mzt/Capture-Exp-Plan-Raw-Data-54334d792f0545b08377c7f4221d48b0) with the "Completed" column ticked.
-However the script also accepts command line arguments. If passed any, it will search the notion dashboard's "Experimental Name" column for IDs matching the command line arguments, and pull only those entries for analysis. It is recommended to use command line arguments as the resulting figures will be less cluttered, and this method allows the user to order the experiments sensibly (as Notion databases are not ordered). For example:
+If passed any positional arguments, the program wil search the notion dashboard's "Experimental Name" column for IDs matching the command line arguments, and pull only those entries for analysis. It is recommended to use command line arguments as the resulting figures will be less cluttered, and this method allows the user to order the experiments sensibly (as Notion databases are not ordered). For example:
 ```
 python3 main.py AS_ED_01 AS_ED_02 AS_ED_07
 ```
-If the script runs successfully, it will produce a file named `out.html` which contains the rendered figures.
+Options are as follows:
+```
+-h, --help            show this help message and exit
+  -o OUTPUT, --output OUTPUT
+                        Specify the name of the output file. Default is out.html
+                        (default: None)
+  -d DASHBOARD, --dashboard DASHBOARD
+                        Specify the ID of the Notion dashboard to read from
+                        (default: None)
+  -x, --exclude         Processes all experiments marked as "Completed", excluding
+                        those supplied as positional arguments (default: False)
+  --config-gen          Generate a config file named ed_data_analysis.conf with all
+                        options set to their defaults (default: False)
+  -c CONFIG, --config CONFIG
+                        Specify the name of a config file from which configuration
+                        options will be loaded. Options set in this file will
+                        always be overridden by command line arguments (default:
+                        None)
+```
+If the script runs successfully, it will produce a file named `out.html` by default which contains the rendered figures.
