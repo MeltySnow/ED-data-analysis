@@ -43,3 +43,24 @@ class ExperimentMeta(object):
 	
 	def ToUNIXTime(self, ip: datetime) -> float:
 		return time.mktime(ip.timetuple())
+
+	# Comparison operator overloads for sorting experiments into chronolocical order
+	def __gt__(self, other):
+		if self.startTime > other.startTime:
+			return True
+		return False
+
+	def __lt__(self, other):
+		if self.startTime < other.startTime:
+			return True
+		return False
+
+	def __ge__(self, other):
+		if self.startTime >= other.startTime:
+			return True
+		return False
+
+	def __le__(self, other):
+		if self.startTime <= other.startTime:
+			return True
+		return False

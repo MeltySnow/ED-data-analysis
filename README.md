@@ -22,8 +22,8 @@ The script can be run using the command:
 ```
 python3 [options]  main.py
 ```
-Default behaviour is to pull metadata from every experiment in the [notion dashboard](https://notion.so/mzt/Capture-Exp-Plan-Raw-Data-54334d792f0545b08377c7f4221d48b0) with the "Completed" column ticked.
-If passed any positional arguments, the program wil search the notion dashboard's "Experimental Name" column for IDs matching the command line arguments, and pull only those entries for analysis. It is recommended to use command line arguments as the resulting figures will be less cluttered, and this method allows the user to order the experiments sensibly (as Notion databases are not ordered). For example:
+Default behaviour is to pull metadata from every experiment in the [notion dashboard](https://notion.so/mzt/Capture-Exp-Plan-Raw-Data-54334d792f0545b08377c7f4221d48b0) with the "Completed" column ticked. Experiments will be sorted into chronological order.
+If passed any positional arguments, the program wil search the notion dashboard's "Experimental Name" column for IDs matching the command line arguments, and pull only those entries for analysis. When postional arguments are given, the experiments will not be sorted, and will appear in the graph in the order that they are given. For example:
 ```
 python3 main.py AS_ED_01 AS_ED_02 AS_ED_07
 ```
