@@ -79,6 +79,54 @@ class EDAnalysisManager(object):
 			sys.exit(1)
 
 
+	# Implementation of a merge sort algorithm
+	@staticmethod
+	def MergeSort(ip: list) -> list:
+		# Divide the array into 2
+		# Recursively call this function on them
+		# Merge the two arrays, assuming they are themselves sorted
+
+		# Define recursion endpoint condition
+		ipLen: int = len(ip)
+		if ipLen <= 1:
+			return ip
+
+		# Split the lists in half
+		midpoint: int = int(len(ip) / 2.0)
+		leftList: list = ip[0 : midpoint]
+		rightList: list = ip[midpoint : len(ip)]
+
+		#print (f"{leftList}\n{rightList}\n")
+
+		# Recursively sort the list fragments
+		leftList = EDAnalysisManager.MergeSort(leftList)
+		rightList = EDAnalysisManager.MergeSort(rightList)
+
+		# Merge the two sorted lists
+		# Initialise variables for loop
+		leftIndex: int = 0
+		rightIndex: int = 0
+		leftLen: int = len(leftList)
+		rightLen: int = len(rightList)
+		op: list = []
+
+		while leftIndex + rightIndex < leftLen + rightLen:
+			if (leftIndex < leftLen and rightIndex < rightLen):
+				if leftList[leftIndex] <= rightList[rightIndex]:
+					op.append(leftList[leftIndex])
+					leftIndex += 1
+				else:
+					op.append(rightList[rightIndex])
+					rightIndex += 1
+			elif rightIndex >= rightLen:
+				op.append(leftList[leftIndex])
+				leftIndex += 1
+			elif leftIndex >= leftLen:
+				op.append(rightList[rightIndex])
+				rightIndex += 1
+
+
+		return op
 
 
 #Takes experiment IDs and gets start and end timestamps from Notion database
@@ -103,6 +151,9 @@ class EDAnalysisManager(object):
 			for index, row in relevantDashboard.iterrows():
 				if (not self.exclude) or (not (row.loc["Experimental Name"] in experimentIDs)):
 					self.Experiments.append(ExperimentMeta(row))
+
+			# Sort experiments in chronological order
+			self.Experiments = self.MergeSort(self.Experiments)
 
 
 
