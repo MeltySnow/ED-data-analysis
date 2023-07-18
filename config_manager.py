@@ -40,7 +40,7 @@ def LoadConfig(config: dict) -> None:
 			key: str = line[0 : colonIndex]
 			val: str = line[colonIndex + 1 :]
 
-			if (not config[key]) and val:
+			if (not config[key]) and val:#First evaluation checks if the key has already been set (as command line arguments should override the config file). Second checks that the value in the config file exists and isn't a null string
 				if key == "exclude":
 					#Convert argument from string to boolean
 					config[key] = val.lower() != "false"

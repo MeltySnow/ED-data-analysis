@@ -161,7 +161,7 @@ class EDAnalysisManager(object):
 	#Dependency for ProcessData(). Takes timestamps from ExperimentMeta object, queries InfluxDB and returns a pandas DataFrame with the raw experimental data
 	def FetchFromInfluxDB(self, experimentMeta: ExperimentMeta) -> pd.DataFrame:
 		#Setup InfluxDB client
-		url: str = "https://europe-west1-1.gcp.cloud2.influxdata.com"
+		url: str = "https://gcpcb5eab166.customers.voltmetrix.io:8086"
 		client: influxdb_client.InfluxDBClient = influxdb_client.InfluxDBClient(url=url, token=self.INFLUXDB_API_KEY, org=self.INFLUXDB_ORG)
 		
 		#Query only allows integral timestamps
@@ -176,6 +176,7 @@ class EDAnalysisManager(object):
 	|> filter(fn: (r) => r["_measurement"] == "component_value")\
 	|> filter(fn: (r) => r["location"] == "arches")\
 	|> filter(fn: (r) => r["stand_id"] == "ED002")\
+	|> toFloat()\
 	|> aggregateWindow(every: 10s, fn: mean, createEmpty: false)\
 	|> pivot(rowKey:["_time"], columnKey: ["_field","component_id"], valueColumn: "_value")\
 	|> yield(name: "ED Data")'

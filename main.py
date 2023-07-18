@@ -30,6 +30,7 @@ if config["config_gen"]:
 if config["config"]:
 	config_manager.LoadConfig(config)
 
+
 try:
 	edAnalysis = EDAnalysisManager(config)
 except Exception as e:
